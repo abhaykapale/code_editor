@@ -1,48 +1,51 @@
-"user server"
+"use server";
 
-import {auth} from "@/auth"
-import { prisma } from "@/lib/db"
+import { auth, signIn } from "@/auth";
+import { prisma } from "@/lib/db";
 
-export const getUserById  = async (id: string) =>
-{
+export async function handleGoogleSignIn() {
+  await signIn("google", {
+    redirectTo: "/",
+  });
+}
+
+export async function handleGithubSignIn() {
+  await signIn("github", {
+    redirectTo: "/",
+  });
+}
+
+export const getUserById = async (id: string) => {
   try {
-      const user = await prisma.user.findUnique ( {
-          where : {id},
-          include : {
-              accounts: true
-          }
-      })
-
-        return user;
-
+    return await prisma.user.findUnique({
+      where: { id },
+      include: {
+        accounts: true,
+      },
+    });
   } catch (error) {
-    
-    console.log(error);
-    return null 
+    console.error(error);
+    return null;
   }
+};
 
+export const getAccountsByUserId = async (
+  userId: string
+) => {
+  try {
+    return await prisma.account.findMany({
+      where: {
+        userId,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return null;
+  }
+};
 
-}
+export const currentUser = async () => {
+  const session = await auth();
 
-export const getAccountsByUserId = async (userId: string) => {
-
-   try {
-
-      const accounts = await prisma.account.findMany({
-         where: {
-            userId
-         }
-      })
-
-      return accounts
-
-   } catch (error) {
-
-      console.log(error)
-      return null
-   }
-}
-export const currUser= async()=>{
-    const user = await auth()
-    return user?.user
-} 
+  return session?.user || null;
+};
