@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 // import { ThemeToggle } from "@/components/ui/toggle-theme";
-import UserButton from "../components/user-button";
+import UserButton from "../auth/components/user-button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function Header() {

@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
-import {Footer} from "@/modules/auth/home/footer";
-import {Header} from "@/modules/auth/home/header";
+import {Footer} from "@/modules/home/footer";
+import {Header} from "@/modules/home/header";
 import { Metadata } from "next";
 // import Home from "../page";
 

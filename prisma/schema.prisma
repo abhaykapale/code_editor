@@ -29,7 +29,9 @@ model User {
   role UserRole  @default(USER) 
   // Optional for WebAuthn support
   Authenticator Authenticator[]
- 
+   myPlaygrounds Playground[] @relation("CreatedPlaygrounds")
+
+  starMarks StarMark[] @relation("StarredPlaygrounds") 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -47,7 +49,6 @@ model Account {
   scope             String?
   id_token          String? @db.String
   session_state     String?
- 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
  
@@ -90,4 +91,50 @@ model Authenticator {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
  
   @@unique([userId, credentialID])
+}
+
+enum Templates {
+  REACT 
+  NEXTJS
+  EXPRESS
+  VUE
+  HONO
+  ANGULAR
+}
+model Playground {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  title String
+  description String?
+
+  template Templates @default(REACT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String @db.ObjectId
+
+  user User @relation( "CreatedPlaygrounds", fields:[userId], references:[id], onDelete:Cascade)
+
+  starMarks StarMark[]
+}
+
+
+model StarMark {
+
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  userId String @db.ObjectId
+  playgroundId String @db.ObjectId
+
+  createdAt DateTime @default(now())
+
+  user User @relation( "StarredPlaygrounds", fields:[userId], references:[id], onDelete:Cascade)
+
+  playground Playground @relation( fields:[playgroundId], references:[id], onDelete:Cascade )
+
+  @@unique([userId, playgroundId])
+
+  @@index([userId])
+  @@index([playgroundId])
 }

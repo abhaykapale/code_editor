@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
-import {SessionProvider} from 'next-auth/react'
+import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -25,25 +27,33 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
 
-  const session = await auth()
   return (
     <SessionProvider session={session}>
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable)}
-    >
-      <body className="min-h-full flex flex-col font-sans">
-        <ThemeProvider
+      <html
+        lang="en"
+        suppressHydrationWarning
+        className={cn(
+          "h-full",
+          "antialiased",
+          geistSans.variable,
+          geistMono.variable
+        )}
+      >
+        <body className="min-h-full flex flex-col font-sans">
+          <ThemeProvider
             attribute="class"
             defaultTheme="system"
             enableSystem
-            disableTransitionOnChange >
-        {children}
-        </ThemeProvider>
+            disableTransitionOnChange
+          >
+            <TooltipProvider>
+              {children}
+            </TooltipProvider>
+          </ThemeProvider>
         </body>
-    </html>
-    </SessionProvider >
+      </html>
+    </SessionProvider>
   );
 }
