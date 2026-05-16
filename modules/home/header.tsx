@@ -29,12 +29,26 @@ export function Header() {
                     href="/"
                     className="flex items-center gap-2 justify-center"
                   >
-                    <Image
-                      src={"/logo.svg"}
-                      alt="Logo"
-                      height={60}
-                      width={60}
-                    />
+            <div className="w-[70px] h-[70px] rounded-full overflow-hidden">
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="
+                  w-full
+                  h-full
+                  object-cover
+                  scale-[1.5]
+                "
+                >
+                <source
+                  src="/logo.mp4"
+                  type="video/mp4"
+                />
+                </video>
+            </div>
+
 
                     <span className="hidden sm:block font-extrabold text-lg">
                       Code Editor
