@@ -66,7 +66,26 @@ export function DashboardSidebar({ initialPlaygroundData }: { initialPlaygroundD
     <Sidebar variant="inset" collapsible="icon" className="border-1 border-r">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-4 py-3 justify-center">
-          <Image src={"/logo.svg"} alt="logo" height={60} width={60} />
+          <div className="w-[70px] h-[70px] rounded-full overflow-hidden">
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="
+                  w-full
+                  h-full
+                  object-cover
+                  scale-[1.5]
+                "
+                >
+                <source
+                  src="/logo.mp4"
+                  type="video/mp4"
+                />
+                </video>
+            </div>
+
         </div>
        
       </SidebarHeader>
