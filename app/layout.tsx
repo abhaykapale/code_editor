@@ -6,6 +6,8 @@ import { SessionProvider } from "next-auth/react";
 import { auth } from "@/auth";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "sonner";
+// import {ThemeProvider} from "next-themes"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,36 +26,45 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   const session = await auth();
 
   return (
-    <SessionProvider session={session}>
-      <html
-        lang="en"
-        suppressHydrationWarning
-        className={cn(
-          "h-full",
-          "antialiased",
-          geistSans.variable,
-          geistMono.variable
-        )}
-      >
-        <body className="min-h-full flex flex-col font-sans">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={cn(
+        "h-full",
+        "antialiased",
+        geistSans.variable,
+        geistMono.variable
+      )}
+    >
+      <body className="min-h-full flex flex-col font-sans">
+
+        <SessionProvider session={session}>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
             enableSystem
             disableTransitionOnChange
           >
+
             <TooltipProvider>
-              {children}
+              <div className="flex flex-col min-h-screen">
+                <Toaster />
+                <div className="flex-1">
+                  {children}
+                </div>
+              </div>
             </TooltipProvider>
+
           </ThemeProvider>
-        </body>
-      </html>
-    </SessionProvider>
+        </SessionProvider>
+
+      </body>
+    </html>
   );
 }

@@ -101,6 +101,7 @@ enum Templates {
   HONO
   ANGULAR
 }
+
 model Playground {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
@@ -127,6 +128,8 @@ model StarMark {
   userId String @db.ObjectId
   playgroundId String @db.ObjectId
 
+  isMarked  Boolean
+  
   createdAt DateTime @default(now())
 
   user User @relation( "StarredPlaygrounds", fields:[userId], references:[id], onDelete:Cascade)

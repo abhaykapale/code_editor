@@ -19,7 +19,7 @@ export default async function DashboardLayout ( {children} :{children:React.Reac
         id :item.id,
         name: item.title,
         //todo: star realted thing 
-        starred:false,
+        starred: item.starMarks?.[0]?.isMarked || false,
         icon : technologyIconMap[item.template] || "Code2",
     }))   ?? []
 
@@ -37,3 +37,4 @@ export default async function DashboardLayout ( {children} :{children:React.Reac
         </SidebarProvider>
     )
 }
+
