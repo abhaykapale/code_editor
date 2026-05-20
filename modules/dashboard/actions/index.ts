@@ -1,106 +1,107 @@
-"use server" ;
+"use server";
 
 import { prisma } from "@/lib/db";
 import { currentUser } from "@/modules/auth/actions";
 import { revalidatePath } from "next/cache";
 import { use } from "react";
 
-export const getAllPlaygroundUser = async ()=>{
-    const user =await currentUser()
+export const getAllPlaygroundUser = async () => {
+    const user = await currentUser()
     try {
         const playground = await prisma.playground.findMany({
-            where : {
-                userId:user?.id
+            where: {
+                userId: user?.id
             },
-            include : {
+            include: {
                 user: true,
                 starMarks: {
-                    where : {
-                        userId:user?.id
+                    where: {
+                        userId: user?.id
                     },
-                    select:{
-                        isMarked:true,
-                        id:true,
-                        userId:true,
-                        playgroundId:true
+                    select: {
+                        isMarked: true,
+                        id: true,
+                        userId: true,
+                        playgroundId: true
                     }
                 }
             }
         })
 
-        return  playground 
+        return playground
     } catch (error) {
         console.log(error);
     }
 }
 
-export const createPlayground = async(data: {
+export const createPlayground = async (data: {
     title: string,
     template: "REACT" | 'NEXTJS' | 'EXPRESS' | 'ANGULAR' | 'HONO' | 'VUE',
-    description? : string,
+    description?: string,
 
-})=>
-{
+}) => {
     const user = await currentUser()
-    const {title , template, description} = data;
+    const { title, template, description } = data;
     try {
         const playground = await prisma.playground.create({
             data: {
                 title: title,
                 template: template,
                 description: description,
-                userId : user?.id!,
+                userId: user?.id!,
 
             }
         })
         return playground
     } catch (error) {
-        
+
     }
 }
-
-export const getPlaygroundById = async (id:string)=>
-{   
-    const user =await currentUser()
+export const getPlaygroundById = async (id: string) => {
+    const user = await currentUser()
     try {
         const playground = await prisma.playground.findUnique({
-            where : {
+            where: {
                 id
             },
-            include : {
+            include: {
                 user: true,
                 starMarks: {
-                    where : {
-                        userId:user?.id
+                    where: {
+                        userId: user?.id
                     },
-                    select:{
-                        isMarked:true,
-                        id:true,
-                        userId:true,
-                        playgroundId:true
+                    select: {
+                        isMarked: true,
+                        id: true,
+                        userId: true,
+                        playgroundId: true
                     }
                 }
             }
         })
 
-        return  playground 
+        return playground
     } catch (error) {
         console.log(error);
     }
-    
+
 }
-export const deleteProjectById = async (id: string)=>
-{
+export const deleteProjectById = async (id: string) => {
+    const user = await currentUser()
+    if (!user?.id) return {
+        error: "Unauthorized",
+        success: false,
+    }
     try {
         await prisma.playground.delete({
-            where : {
+            where: {
                 id
             }
         })
         revalidatePath('/dashboard')
     } catch (error) {
         console.log(error);
-        
+
     }
 }
 
@@ -124,58 +125,56 @@ export const toggleStarMark = async (playgroundId: string, newMarkedState: boole
             },
         })
 
-        revalidatePath('/dashboard', 'layout')
+        revalidatePath('/dashboard')
         return { success: true, error: null, isMarked: newMarkedState }
     } catch (error) {
         console.log(error)
         return { success: false, error: "Something went wrong", isMarked: newMarkedState }
     }
 }
-export const editProjectById = async (id:string ,data:{title : string  , description: string} )=>
-{
+export const editProjectById = async (id: string, data: { title: string, description: string }) => {
     try {
         // const {title, description} =data;
 
         await prisma.playground.update({
-            where : {
-                  id
-                },
-                data:data
+            where: {
+                id
+            },
+            data: data
         })
         revalidatePath('/dashboard')
     } catch (error) {
         console.log(error);
-        
+
     }
 }
 
-export const duplicateProjectById = async (id:string)=>
-{
+export const duplicateProjectById = async (id: string) => {
     try {
-        const OG=await prisma.playground.findUnique ({
-            where : {
+        const OG = await prisma.playground.findUnique({
+            where: {
                 id
             }
             //todo template files
         })
 
-        if(!OG) throw new Error ("original playground not found")
+        if (!OG) throw new Error("original playground not found")
 
-            const duplicatePlayground= await prisma.playground.create ({
-                data : {
-                    title :`${OG.title}(Copy)`,
-                    description : `${OG.description}`,
-                    template :`${OG.template}`,
-                    userId  : `${OG.userId}`,
+        const duplicatePlayground = await prisma.playground.create({
+            data: {
+                title: `${OG.title}(Copy)`,
+                description: `${OG.description}`,
+                template: `${OG.template}`,
+                userId: `${OG.userId}`,
 
-                    // todo add template files
-                }
-            })
+                // todo add template files
+            }
+        })
 
         revalidatePath('/dashboard')
     } catch (error) {
         console.log(error);
-        
+
     }
 }
 
