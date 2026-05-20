@@ -7,12 +7,34 @@ import TemplateSelectionModal from "@/modules/modal/components/template-model";
 import { Plus } from 'lucide-react'
 import Image from "next/image"
 import { useRouter } from "next/navigation";
+import { title } from "process";
 import { useState } from "react"
+import { Interface } from "readline";
 import { toast } from "sonner";
+import { createPlayground } from "../actions";
 
+interface Templates {
+  title: string;
+  template: "REACT" | "NEXTJS" | "EXPRESS" | "VUE" | "HONO" | "ANGULAR";
+  description?: string;
+  
+}
 const AddNewButton = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<Templates | null >(null)
 
+  const router= useRouter()
+  
+  const handleSubmit= async (data : Templates ) =>{
+      setSelectedTemplate(data)
+      const res= await createPlayground(data)
+      console.log(res)
+      setIsModalOpen(false)
+      setSelectedTemplate(null)
+      router.push(`/playground/${res?.id}`)
+      toast.success("Project created successfully")
+    }
+    
   return (
     <>
       <div
@@ -52,10 +74,9 @@ const AddNewButton = () => {
        <TemplateSelectionModal
        isOpen ={isModalOpen}
        onClose={()=> setIsModalOpen(false)}
-       onSubmit={()=>{setIsModalOpen(true)}}
+       onSubmit={handleSubmit}
        />
     </>
   )
 }
-
 export default AddNewButton

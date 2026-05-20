@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -61,6 +61,11 @@ export function DashboardSidebar({ initialPlaygroundData }: { initialPlaygroundD
   const pathname = usePathname()
   const [starredPlaygrounds, setStarredPlaygrounds] = useState(initialPlaygroundData.filter((p) => p.starred))
   const [recentPlaygrounds, setRecentPlaygrounds] = useState(initialPlaygroundData)
+
+  useEffect(() => {
+    setStarredPlaygrounds(initialPlaygroundData.filter((p) => p.starred))
+    setRecentPlaygrounds(initialPlaygroundData)
+  }, [initialPlaygroundData])
 
   return (
     <Sidebar variant="inset" collapsible="icon" className="border-1 border-r">
