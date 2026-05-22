@@ -11,6 +11,8 @@ import {
     MoreHorizontal,
 } from "lucide-react";
 
+import FileIcon from "@/modules/playground/components/file-icon";
+
 import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
@@ -39,6 +41,8 @@ import {
 import { TemplateFileTree } from "@/modules/playground/components/playground-explorer";
 import { useFileExplorer } from "@/modules/playground/hooks/useFileExplorer";
 import { usePlayground } from "@/modules/playground/hooks/usePlayground";
+import PlaygroundEditor from "@/modules/playground/components/editor";
+import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 
 const MainPlaygroundPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -118,7 +122,7 @@ const MainPlaygroundPage = () => {
         <TooltipProvider>
             <>
                 <TemplateFileTree
-                    data={templateData}
+                    data={templateData!}
                     onFileSelect={handleFileSelect}
                     selectedFile={activeFile}
                     title="File Explorer"
@@ -323,7 +327,10 @@ const MainPlaygroundPage = () => {
                                                     className="group"
                                                 >
 
-                                                    <FileText
+                                                    <FileIcon
+                                                        extension={
+                                                            file.fileExtension
+                                                        }
                                                         size={
                                                             14
                                                         }
@@ -402,7 +409,7 @@ const MainPlaygroundPage = () => {
 
                                 </div>
 
-                                <div className="flex-1 h-[calc(100%-2.5rem)] overflow-hidden">
+                                {/* <div className="flex-1 h-[calc(100%-2.5rem)] overflow-hidden">
                                     {activeFile && (
                                         <textarea
                                             className="w-full h-full bg-background text-foreground font-mono text-sm p-4 resize-none outline-none border-0"
@@ -414,6 +421,33 @@ const MainPlaygroundPage = () => {
                                             spellCheck={false}
                                         />
                                     )}
+                                </div> */}
+
+                                <div className="flex-1">
+                                    <ResizablePanelGroup
+                                        orientation="horizontal"
+                                        className="h-full"
+                                    >
+
+                                        <ResizablePanel
+                                            defaultSize={
+                                                isPreviewVisible
+                                                ? 50
+                                                : 100
+                                            }
+                                        >
+
+                                            <PlaygroundEditor
+                                                activeFile={activeFile}
+                                                content={
+                                                    activeFile?.content || ""
+                                                }
+                                                onContentChanges={()=>{}}
+                                            />
+
+                                        </ResizablePanel>
+
+                                    </ResizablePanelGroup>
                                 </div>
 
                             </Tabs>

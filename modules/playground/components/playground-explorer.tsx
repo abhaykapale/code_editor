@@ -13,6 +13,8 @@ import {
   Edit3,
 } from "lucide-react";
 
+import FileIcon from "./file-icon";
+
 import {
   Collapsible,
   CollapsibleContent,
@@ -294,7 +296,7 @@ function TemplateNode({
             onClick={() => onFileSelect?.(file)}
             className="flex-1"
           >
-            <File className="h-4 w-4 mr-2 shrink-0" />
+            <FileIcon extension={file.fileExtension} size={16} className="mr-2" />
             <span>{fileName}</span>
           </SidebarMenuButton>
 
@@ -348,7 +350,7 @@ function TemplateNode({
   } else {
     const folder = item as TemplateFolder;
     const folderName = folder.folderName;
-    const currentPath = path ? '{path}/{folderName}' : folderName;
+    const currentPath = path ? `${path}/${folderName}` : folderName;
 
     const handleAddFile = () => {
       setIsNewFileDialogOpen(true);
