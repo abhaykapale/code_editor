@@ -4,7 +4,7 @@ import { templatePaths } from "@/lib/template";
 import path from "path";
 import fs from "fs/promises";
 import { NextRequest } from "next/server";
-import { error } from "console";
+// import { error } from "console";
 
 
 export async function GET(req:NextRequest, {params}: {params: Promise<{id: string}>})

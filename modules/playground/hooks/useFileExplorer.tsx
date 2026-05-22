@@ -27,6 +27,7 @@ interface FileExplorerState{
     openFile: (file: TemplateFile) => void;
     closeFile: (fileId: string) => void;
     closeAllFiles: ()=> void;
+    switchToFile: (fileId: string) => void;
 }
 //@ts-ignore
 export const useFileExplorer = create<FileExplorerState>((set, get) => ({
@@ -52,34 +53,59 @@ export const useFileExplorer = create<FileExplorerState>((set, get) => ({
         set({ activeFileId: fileId }),
 
     openFile: (file)=>{
-        const fileId =generateFileId(file, get().templateData!);
-        const {openFiles} = get();
-        const existingFile = openFiles.find((f)=> f.id ===fileId);
+    const fileId = generateFileId(
+        file,
+        get().templateData!
+    );
 
-        if(existingFile)
-        {
-            set ({ 
-                    activeFileId: fileId,
-                    editorContent : existingFile.content
-                })
-            return ;
-        }
+    const { openFiles } = get();
 
-        const newOpenFile: OpenFile = {
-            ... file,
-            id: fileId,
-            hasUnsavedChanges: false,
-            content: file.content || "",
-            originalContent: file.content || "",
+    const existingFile =
+        openFiles.find(
+            (f)=>f.id===fileId
+        );
 
-            };
+    if(existingFile){
 
-            set((state)=>({
-            openFiles: [ ... state.openFiles, newOpenFile],
-            activeFileId: fileId,
-            editorContent: file.content || "",
-        }))
-    },
+        set({
+            activeFileId:fileId,
+            editorContent:
+                existingFile.content
+        });
+
+        return;
+    }
+
+    const newOpenFile: OpenFile = {
+
+        ...file,
+
+        id:fileId,
+
+        hasUnsavedChanges:false,
+
+        content:
+            file.content || "",
+
+        originalContent:
+            file.content || "",
+
+    };
+
+    set((state)=>({
+
+        openFiles:[
+            ...state.openFiles,
+            newOpenFile
+        ],
+
+        activeFileId:fileId,
+
+        editorContent:
+            file.content || "",
+
+    }));
+},
 
 
    closeFile: (fileId) => {
@@ -114,5 +140,24 @@ export const useFileExplorer = create<FileExplorerState>((set, get) => ({
         activeFileId: newActiveFileId,
         editorContent: newEditorContent,
     });
+},
+
+   closeAllFiles: () => {
+    set({
+        openFiles: [],
+        activeFileId: null,
+        editorContent: "",
+    });
+},
+
+   switchToFile: (fileId) => {
+    const { openFiles } = get();
+    const file = openFiles.find((f) => f.id === fileId);
+    if (file) {
+        set({
+            activeFileId: fileId,
+            editorContent: file.content,
+        });
+    }
 },
 }));

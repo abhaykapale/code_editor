@@ -1,4 +1,4 @@
-import { TemplateFile, TemplateFolder } from "./path-to-json";
+// import { TemplateFile, TemplateFolder } from "./path-to-json";
 
 /**
  * Generates a unique file ID based on file location
@@ -8,6 +8,40 @@ import { TemplateFile, TemplateFolder } from "./path-to-json";
  * @param rootFolder - The root template folder containing all files
  * @returns A unique file identifier including full path
  */
+
+import { TemplateFile, TemplateFolder } from "./path-to-json";
+
+export const findFilePath = (
+    targetFile: TemplateFile,
+    folder: TemplateFolder,
+    currentPath = ""
+): string | null => {
+
+    for (const item of folder.items) {
+
+        if ("items" in item) {
+            const result = findFilePath(
+                targetFile,
+                item,
+                `${currentPath}/${item.folderName}`
+            );
+
+            if (result) {
+                return result;
+            }
+        }
+
+        else if (
+            item.filename === targetFile.filename &&
+            item.fileExtension === targetFile.fileExtension
+        ) {
+            return currentPath;
+        }
+    }
+
+    return null;
+};
+
 export const generateFileId = (
     file: TemplateFile,
     rootFolder: TemplateFolder
