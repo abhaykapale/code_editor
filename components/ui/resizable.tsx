@@ -41,7 +41,22 @@ function ResizableHandle({
       {...props}
     >
       {withHandle && (
-        <div className="z-10 flex h-6 w-1 shrink-0 rounded-none bg-border" />
+        <div className="z-10 flex h-4 w-3 items-center justify-center rounded-sm border bg-border [&[aria-orientation=horizontal]]:h-3 [&[aria-orientation=horizontal]]:w-14">
+          <svg
+            width="10"
+            height="6"
+            viewBox="0 0 10 6"
+            fill="currentColor"
+            className="text-muted-foreground [[aria-orientation=vertical]_&]:rotate-90"
+          >
+            <circle cx="2" cy="1" r="1" />
+            <circle cx="5" cy="1" r="1" />
+            <circle cx="8" cy="1" r="1" />
+            <circle cx="2" cy="5" r="1" />
+            <circle cx="5" cy="5" r="1" />
+            <circle cx="8" cy="5" r="1" />
+          </svg>
+        </div>
       )}
     </ResizablePrimitive.Separator>
   )
