@@ -42,7 +42,9 @@ import { TemplateFileTree } from "@/modules/playground/components/playground-exp
 import { useFileExplorer } from "@/modules/playground/hooks/useFileExplorer";
 import { usePlayground } from "@/modules/playground/hooks/usePlayground";
 import PlaygroundEditor from "@/modules/playground/components/editor";
-import { ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { UseWebContanier } from "@/modules/webcontainers/hooks/useWebContainer";
+import WebContainerPreview from "@/modules/webcontainers/components/webcontainer-preview";
 
 const MainPlaygroundPage = () => {
     const { id } = useParams<{ id: string }>();
@@ -67,7 +69,18 @@ const MainPlaygroundPage = () => {
         setEditorContent,
         activeFileId,
         editorContent,
+        markActiveFileSaved,
+        markAllFilesSaved,
     } = useFileExplorer();
+
+
+    const { 
+        serverUrl,
+        isLoading:containerLoading,
+        error : containerError,
+        instance,
+        writeFileSync
+    } =UseWebContanier({templateData})
 
     useEffect(() => {
         setPlaygroundId(id);
@@ -93,29 +106,61 @@ const MainPlaygroundPage = () => {
         openFile(file);
     };
 
-    const handleSave = async () => {
-        if (!activeFile || !templateData) return;
+    const handleSave = async (saveAll = false) => {
+        if (!templateData) return;
 
-        // Build an updated template tree with the active file's new content
-        const updateFileInTree = (folder: any): any => ({
+        const updateFilesInTree = (folder: any, currentPath = ""): any => ({
             ...folder,
             items: folder.items.map((item: any) => {
                 if ("items" in item) {
-                    return updateFileInTree(item);
+                    const subPath = currentPath ? `${currentPath}/${item.folderName}` : item.folderName;
+                    return updateFilesInTree(item, subPath);
                 }
-                // Match by filename + extension
-                if (
-                    item.filename === activeFile.filename &&
-                    item.fileExtension === activeFile.fileExtension
-                ) {
-                    return { ...item, content: editorContent };
+
+                // Generate the path for 'item'
+                const ext = item.fileExtension?.trim();
+                const suffix = ext ? `.${ext}` : "";
+                const itemPath = currentPath 
+                    ? `${currentPath}/${item.filename}${suffix}`
+                    : `${item.filename}${suffix}`;
+
+                const openFile = openFiles.find((of) => of.id === itemPath);
+
+                if (openFile) {
+                    if (saveAll || openFile.id === activeFileId) {
+                        return { ...item, content: openFile.content };
+                    }
                 }
                 return item;
             }),
         });
 
-        const updatedTree = updateFileInTree(templateData);
+        const updatedTree = updateFilesInTree(templateData);
         await saveTemplateData(updatedTree);
+
+        // Mark files as saved in the store
+        if (saveAll) {
+            markAllFilesSaved();
+        } else {
+            markActiveFileSaved();
+        }
+
+        // Sync to WebContainer
+        if (instance) {
+            try {
+                if (saveAll) {
+                    for (const file of openFiles) {
+                        if (file.hasUnsavedChanges) {
+                            await writeFileSync(file.id, file.content);
+                        }
+                    }
+                } else if (activeFileId && activeFile) {
+                    await writeFileSync(activeFileId, editorContent);
+                }
+            } catch (err) {
+                console.error("Failed to sync file to WebContainer:", err);
+            }
+        }
     };
 
     return (
@@ -163,8 +208,7 @@ const MainPlaygroundPage = () => {
                             </div>
 
                             <div className="flex gap-2">
-
-                                <Tooltip>
+                                 <Tooltip>
 
                                     <TooltipTrigger asChild>
 
@@ -175,7 +219,7 @@ const MainPlaygroundPage = () => {
                                                 !activeFile ||
                                                 !activeFile.hasUnsavedChanges
                                             }
-                                            onClick={handleSave}
+                                            onClick={() => handleSave(false)}
                                         >
                                             <Save />
 
@@ -203,7 +247,7 @@ const MainPlaygroundPage = () => {
                                             disabled={
                                                 !hasUnsavedChanges
                                             }
-                                            onClick={handleSave}
+                                            onClick={() => handleSave(true)}
                                         >
                                             <Save />
 
@@ -440,13 +484,32 @@ const MainPlaygroundPage = () => {
                                             <PlaygroundEditor
                                                 activeFile={activeFile}
                                                 content={
-                                                    activeFile?.content || ""
+                                                    editorContent
                                                 }
-                                                onContentChanges={()=>{}}
+                                                onContentChanges={setEditorContent}
                                             />
 
                                         </ResizablePanel>
+                                        {
+                                            isPreviewVisible && (
+                                                <>
+                                                <ResizableHandle/>
+                                                <ResizablePanel defaultSize={50}>
 
+                                                    <WebContainerPreview
+                                                        templateData={templateData}
+                                                        instance={instance}
+                                                        writeFileSync={writeFileSync}
+                                                        isLoading={containerLoading}
+                                                        error={containerError}
+                                                        serverUrl={serverUrl!}
+                                                        forceResetup={false}
+                                                    />
+
+                                                </ResizablePanel>
+                                                </>
+                                            )
+                                        }
                                     </ResizablePanelGroup>
                                 </div>
 

@@ -1,7 +1,7 @@
 import  {useState, useEffect, useCallback} from "react";
 import {toast} from "sonner"
 import type { TemplateFolder } from "../lib/path-to-json";
-import { getPlaygroundById, SaveUpdatedCode } from "../actions";
+import { getPlaygroundById, SaveUpdatedCode, getStarterTemplate } from "../actions";
 
 interface PlaygroundData{
     id:string;
@@ -51,27 +51,29 @@ export const usePlayground = (id: string) => {
                 title: data.title,
                 files: files!,
             });
-            const rawcontent = data.templateFiles[0]?.content
-            if(typeof rawcontent === 'string')
-            {
-                setTemplateData(JSON.parse(rawcontent));
+            const rawcontent = data.templateFiles[0]?.content;
+
+            if (rawcontent) {
+                // Prisma Json fields can return either a string or a parsed object
+                if (typeof rawcontent === 'string') {
+                    setTemplateData(JSON.parse(rawcontent));
+                } else {
+                    // Already a parsed object from Prisma's Json type
+                    setTemplateData(rawcontent as unknown as TemplateFolder);
+                }
                 toast.success("Playground loaded successfully");
-                return ;
+                return;
             }
 
-            const res =await fetch(`/api/template/${id}`);
+            // No saved content yet — load the starter template via server action
+            const starterTemplate = await getStarterTemplate(data.template);
             
-            if(!res.ok) throw new Error("Failed to fetch playground");
-            const templateRes= await res.json();
-            
-            if(templateRes.data?.template) {
-
-                setTemplateData(templateRes.data.template)
-            }else
-            {
+            if (starterTemplate) {
+                setTemplateData(starterTemplate);
+            } else {
                 setTemplateData({
                     folderName: "Root",
-                    items :[],
+                    items: [],
                 });
             }
             toast.success("Template loaded successfully");

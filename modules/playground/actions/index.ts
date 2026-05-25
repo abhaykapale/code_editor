@@ -1,8 +1,26 @@
 "use server"
 
 import { prisma } from "@/lib/db"
-import { TemplateFolder } from "../lib/path-to-json";
+import { TemplateFolder, scanTemplateDirectory } from "../lib/path-to-json";
 import { currentUser } from "@/modules/auth/actions";
+import { templatePaths } from "@/lib/template";
+import path from "path";
+
+export const getStarterTemplate = async (templateKey: string): Promise<TemplateFolder | null> => {
+    try {
+        const templatePath = templatePaths[templateKey as keyof typeof templatePaths];
+        if (!templatePath) {
+            console.error(`Unknown template key: ${templateKey}`);
+            return null;
+        }
+        const fullPath = path.join(process.cwd(), templatePath);
+        const result = await scanTemplateDirectory(fullPath);
+        return result;
+    } catch (error) {
+        console.error("Error loading starter template:", error);
+        return null;
+    }
+}
 
 export const getPlaygroundById = async(id:string) => {
     try {
@@ -13,6 +31,7 @@ export const getPlaygroundById = async(id:string) => {
             select : {
                 id: true,
                 title: true,
+                template: true,
                 templateFiles :{
                     select : {
                         content:true,
