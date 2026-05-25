@@ -2,8 +2,8 @@ export const templatePaths = {
   REACT: "/starters/react",
   NEXTJS: "/starters/nextjs",
   VUE: "/starters/vue",
-  EXPRESS: "/starters/express",
-  HONO: "/starters/hono",
+  EXPRESS: "/starters/express-simple",
+  HONO: "/starters/hono-nodejs-starter",
   ANGULAR: "/starters/angular",
 }
 
@@ -24,16 +24,14 @@ export const templateFile ={
     "src/style.css"
   ],
   "express": [
-    "src/index.ts",
-    "src/style.css"
+    "index.js",
   ],
   "hono": [
     "src/index.ts",
-    "src/style.css"
   ],
   "angular": [
     "src/app/app.component.ts",
     "src/app/app.module.ts",
     "src/app/app.component.css"
   ],
-}   
+}

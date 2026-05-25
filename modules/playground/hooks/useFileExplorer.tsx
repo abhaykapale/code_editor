@@ -28,6 +28,8 @@ interface FileExplorerState{
     closeFile: (fileId: string) => void;
     closeAllFiles: ()=> void;
     switchToFile: (fileId: string) => void;
+    markActiveFileSaved: () => void;
+    markAllFilesSaved: () => void;
 }
 //@ts-ignore
 export const useFileExplorer = create<FileExplorerState>((set, get) => ({
@@ -43,8 +45,20 @@ export const useFileExplorer = create<FileExplorerState>((set, get) => ({
     setPlaygroundId: (id) =>
         set({ playgroundId: id }),
 
-    setEditorContent: (content) =>
-        set({ editorContent: content }),
+    setEditorContent: (content) => {
+        const { openFiles, activeFileId } = get();
+        const updatedOpenFiles = openFiles.map((file) => {
+            if (file.id === activeFileId) {
+                return {
+                    ...file,
+                    content,
+                    hasUnsavedChanges: content !== file.originalContent,
+                };
+            }
+            return file;
+        });
+        set({ editorContent: content, openFiles: updatedOpenFiles });
+    },
 
     setOpenFiles: (files) =>
         set({ openFiles: files }),
@@ -160,4 +174,29 @@ export const useFileExplorer = create<FileExplorerState>((set, get) => ({
         });
     }
 },
+
+   markActiveFileSaved: () => {
+    const { openFiles, activeFileId } = get();
+    const updatedOpenFiles = openFiles.map((file) => {
+        if (file.id === activeFileId) {
+            return {
+                ...file,
+                originalContent: file.content,
+                hasUnsavedChanges: false,
+            };
+        }
+        return file;
+    });
+    set({ openFiles: updatedOpenFiles });
+   },
+
+   markAllFilesSaved: () => {
+    const { openFiles } = get();
+    const updatedOpenFiles = openFiles.map((file) => ({
+        ...file,
+        originalContent: file.content,
+        hasUnsavedChanges: false,
+    }));
+    set({ openFiles: updatedOpenFiles });
+   },
 }));
