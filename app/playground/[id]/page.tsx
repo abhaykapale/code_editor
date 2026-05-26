@@ -55,6 +55,10 @@ import { ConfirmationDialog } from "@/modules/playground/components/dialogs/conf
 import LoadingStep from "@/modules/playground/components/loadingStep";
 import TerminalComponent from "@/modules/webcontainers/components/terminal";
 
+import ToggleAI from "@/modules/playground/components/toogleAI";
+
+
+
 const MainPlaygroundPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
 
@@ -454,6 +458,14 @@ const MainPlaygroundPage: React.FC = () => {
                     <TooltipContent>Save All (Ctrl+Shift+S)</TooltipContent>
                 </Tooltip>
 
+
+                <ToggleAI
+                isEnabled= {true}
+                onToggle={()=>{}}
+                suggestionLoading = {false}
+                />
+
+
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -547,13 +559,13 @@ const MainPlaygroundPage: React.FC = () => {
                   </Tabs>
                 </div>
 
-                {/* Editor, Preview & Terminal */}
+
                 <div className="flex-1 overflow-hidden">
                   <ResizablePanelGroup
                     orientation="vertical"
                     className="h-full"
                   >
-                    {/* Top: Editor + Preview (horizontal) */}
+
                     <ResizablePanel defaultSize={isTerminalVisible ? 70 : 100} minSize={20}>
                       <ResizablePanelGroup
                         orientation="horizontal"
@@ -593,7 +605,10 @@ const MainPlaygroundPage: React.FC = () => {
                     {/* Bottom: Terminal */}
                     {isTerminalVisible && (
                       <>
+
+                        <ResizableHandle withHandle className="hover:bg-primary/10 transition-colors data-resize-handle-active:bg-primary/20" />
                         <ResizableHandle withHandle className="hover:bg-primary/10 transition-colors data-[resize-handle-active]:bg-primary/20" />
+
                         <ResizablePanel defaultSize={30} minSize={10} maxSize={80}>
                           <TerminalComponent
                             webContainerInstance={instance}

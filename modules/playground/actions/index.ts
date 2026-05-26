@@ -50,26 +50,41 @@ export const getPlaygroundById = async(id:string) => {
         return null;
     }
 }
-export const SaveUpdatedCode = async (id: string , data:TemplateFolder) => {
-    const user = await currentUser()
-    if(!user) {
-        throw new Error("User not found");
+export const SaveUpdatedCode = async (id: string, data: TemplateFolder) => {
+    const user = await currentUser();
+    if (!user) {
+        throw new Error("Unauthorized: You must be signed in to save changes.");
     }
-        const updatedPlayground = await prisma.templateFile.upsert({
-            where : {
-                playgroundId: id
-            },
-            update : {
-                content: JSON.stringify(data),
-            },
-            create : {
-                playgroundId: id,
-                content:JSON.stringify(data),
-            }
-        })
 
-        return updatedPlayground;
-} 
+    // Verify the playground exists and belongs to the current user
+    const playground = await prisma.playground.findUnique({
+        where: { id },
+        select: { userId: true },
+    });
+
+    if (!playground) {
+        throw new Error("Not found: Playground does not exist.");
+    }
+
+    if (playground.userId !== user.id) {
+        throw new Error("Forbidden: You do not have permission to edit this playground.");
+    }
+
+    const updatedPlayground = await prisma.templateFile.upsert({
+        where: {
+            playgroundId: id,
+        },
+        update: {
+            content: JSON.stringify(data),
+        },
+        create: {
+            playgroundId: id,
+            content: JSON.stringify(data),
+        },
+    });
+
+    return updatedPlayground;
+};
 
 
 
