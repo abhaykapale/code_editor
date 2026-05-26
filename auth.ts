@@ -33,12 +33,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
 
     async signIn({ user, account, profile }) {
-
-      console.log(user)
-      console.log(account)
-      console.log(profile)
-
-      return true
+      return true;
     },
 
     async jwt({ token }) {
