@@ -35,25 +35,26 @@ import {
 } from "lucide-react";
 import React from "react";
 import { cn } from "@/lib/utils";
-import { AIChatSidePanel } from "@/modules/ai-chat/components/ai-chat-sidepanel";
+import { AIChatSidePanel } from "@/modules/aiChatPanel/components/AiChatSidePanel";
 
 
 interface ToggleAIProps {
   isEnabled: boolean;
   onToggle: (value: boolean) => void;
-  
   suggestionLoading: boolean;
   loadingProgress?: number;
   activeFeature?: string;
+  /** Passed to AIChatSidePanel so messages are persisted per-playground */
+  playgroundId?: string;
 }
 
 const ToggleAI: React.FC<ToggleAIProps> = ({
   isEnabled,
   onToggle,
-
   suggestionLoading,
   loadingProgress = 0,
   activeFeature,
+  playgroundId,
 }) => {
   const [isChatOpen, setIsChatOpen] = useState(false);
 
@@ -191,7 +192,12 @@ const ToggleAI: React.FC<ToggleAIProps> = ({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
+                
+      <AIChatSidePanel
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        playgroundId={playgroundId}
+      />
     </>
   );
 };

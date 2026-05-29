@@ -44,7 +44,7 @@ import {
 import { TemplateFileTree } from "@/modules/playground/components/playground-explorer";
 import { useFileExplorer } from "@/modules/playground/hooks/useFileExplorer";
 import { usePlayground } from "@/modules/playground/hooks/usePlayground";
-import PlaygroundEditor from "@/modules/playground/components/editor";
+import {PlaygroundEditor} from "@/modules/playground/components/editor";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { UseWebContanier } from "@/modules/webcontainers/hooks/useWebContainer";
 import WebContainerPreview from "@/modules/webcontainers/components/webcontainer-preview";
@@ -56,6 +56,7 @@ import LoadingStep from "@/modules/playground/components/loadingStep";
 import TerminalComponent from "@/modules/webcontainers/components/terminal";
 
 import ToggleAI from "@/modules/playground/components/toogleAI";
+import { UseAiSuggestions } from "@/modules/playground/hooks/useAisuggestions";
 
 
 
@@ -73,7 +74,9 @@ const MainPlaygroundPage: React.FC = () => {
 
   const [isPreviewVisible, setIsPreviewVisible] = useState(true);
   const [isTerminalVisible, setIsTerminalVisible] = useState(false);
-
+  
+  const AISuggestions = UseAiSuggestions(); 
+  
   // Custom hooks
   const { playgroundData, templateData, isLoading, error, saveTemplateData } =
     usePlayground(id);
@@ -460,9 +463,10 @@ const MainPlaygroundPage: React.FC = () => {
 
 
                 <ToggleAI
-                isEnabled= {true}
-                onToggle={()=>{}}
-                suggestionLoading = {false}
+                isEnabled= {AISuggestions.isEnabled}
+                onToggle={AISuggestions.toggleEnabled}
+                suggestionLoading = {AISuggestions.isLoading}
+                playgroundId={id}
                 />
 
 
@@ -575,14 +579,20 @@ const MainPlaygroundPage: React.FC = () => {
                           <PlaygroundEditor
                             activeFile={activeFile}
                             content={activeFile?.content || ""}
-                            onContentChanges={(value) => {
+                            onContentChange={(value) => {
                               if (activeFileId) {
                                 updateFileContent(activeFileId, value);
                               }
                             }}
+                            suggestion={AISuggestions.suggestion}
+                            suggestionLoading={AISuggestions.isLoading}
+                            suggestionPosition={AISuggestions.position}
+                            onAcceptSuggestion={(editor, monaco) => AISuggestions.acceptSuggestion(editor, monaco)}
+                            onRejectSuggestion={(editor) => AISuggestions.rejectSuggestion(editor)}
+                            onTriggerSuggestion={(type, editor) => AISuggestions.fetchSuggestion(type, editor)}
                           />
                         </ResizablePanel>
-
+                          
                         {isPreviewVisible && (
                           <>
                             <ResizableHandle />

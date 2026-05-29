@@ -315,6 +315,7 @@ async function generateSuggestion(prompt: string) {
 
     } catch (error) {
         console.error(error); // ✅ Fix 5: was console.log
-        return "AI suggestion unavailable";
+        // return "AI suggestion unavailable";
+        return null;
     }
 }
