@@ -6,7 +6,11 @@ export const templatePaths = {
   HONO: "/starters/hono-nodejs-starter",
   ANGULAR: "/starters/angular",
 }
-
+export type ActionResponse<T = null> = {
+    success: boolean
+    data?: T
+    error?: string
+}
 export const templateFile ={
   "react": [
     "src/App.tsx",

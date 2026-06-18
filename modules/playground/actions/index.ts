@@ -24,9 +24,14 @@ export const getStarterTemplate = async (templateKey: string): Promise<TemplateF
 
 export const getPlaygroundById = async(id:string) => {
     try {
+        const user = await currentUser();
+        if (!user) {
+            throw new Error("Unauthorized: You must be signed in to view this playground.");
+        }
         const playground = await prisma.playground.findUnique({
             where:{
-                id
+                id,
+                userId:user.id
             },
             select : {
                 id: true,
@@ -56,7 +61,7 @@ export const SaveUpdatedCode = async (id: string, data: TemplateFolder) => {
         throw new Error("Unauthorized: You must be signed in to save changes.");
     }
 
-    // Verify the playground exists and belongs to the current user
+    // To verify the playground exists and belongs to the current user
     const playground = await prisma.playground.findUnique({
         where: { id },
         select: { userId: true },

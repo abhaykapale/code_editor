@@ -1,9 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/db";
+import { ActionResponse } from "@/lib/template";
 import { currentUser } from "@/modules/auth/actions";
+import { Playground } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { use } from "react";
 
 export const getAllPlaygroundUser = async () => {
     const user = await currentUser()
@@ -31,77 +32,151 @@ export const getAllPlaygroundUser = async () => {
         return playground
     } catch (error) {
         console.log(error);
+        return {
+            error: "Something went wrong",
+            success: false
+        }
     }
 }
 
-export const createPlayground = async (data: {
-    title: string,
-    template: "REACT" | 'NEXTJS' | 'EXPRESS' | 'ANGULAR' | 'HONO' | 'VUE',
-    description?: string,
-
-}) => {
+export const createPlayground = async (
+    data: {
+        title: string
+        template: "REACT" | "NEXTJS" | "EXPRESS" | "ANGULAR" | "HONO" | "VUE"
+        description?: string
+    }
+): Promise<ActionResponse<Playground>> => {
     const user = await currentUser()
-    const { title, template, description } = data;
+
+    if (!user?.id) {
+        return {
+            success: false,
+            error: "Unauthorized"
+        }
+    }
+
     try {
         const playground = await prisma.playground.create({
             data: {
-                title: title,
-                template: template,
-                description: description,
-                userId: user?.id!,
-
+                ...data,
+                userId: user.id
             }
         })
-        return playground
-    } catch (error) {
 
+        return {
+            success: true,
+            data: playground
+        }
+    } catch (error) {
+        console.error(error)
+
+        return {
+            success: false,
+            error: "Something went wrong"
+        }
     }
 }
-export const getPlaygroundById = async (id: string) => {
+
+export const getPlaygroundById = async (
+    id: string
+): Promise<ActionResponse<any>> => {
     const user = await currentUser()
+
+    if (!user?.id) {
+        return {
+            success: false,
+            error: "Unauthorized"
+        }
+    }
+
     try {
-        const playground = await prisma.playground.findUnique({
+        const playground = await prisma.playground.findFirst({
             where: {
-                id
+                id,
+                userId: user.id
             },
             include: {
-                user: true,
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        image: true
+                    }
+                },
                 starMarks: {
                     where: {
-                        userId: user?.id
-                    },
-                    select: {
-                        isMarked: true,
-                        id: true,
-                        userId: true,
-                        playgroundId: true
+                        userId: user.id
                     }
                 }
             }
         })
 
-        return playground
+        if (!playground) {
+            return {
+                success: false,
+                error: "Playground not found"
+            }
+        }
+
+        return {
+            success: true,
+            data: playground
+        }
     } catch (error) {
-        console.log(error);
+        console.error(error)
+
+        return {
+            success: false,
+            error: "Something went wrong"
+        }
+    }
+}
+
+export const deleteProjectById = async (
+    id: string
+): Promise<ActionResponse> => {
+    const user = await currentUser()
+
+    if (!user?.id) {
+        return {
+            success: false,
+            error: "Unauthorized"
+        }
     }
 
-}
-export const deleteProjectById = async (id: string) => {
-    const user = await currentUser()
-    if (!user?.id) return {
-        error: "Unauthorized",
-        success: false,
-    }
     try {
+        const project = await prisma.playground.findFirst({
+            where: {
+                id,
+                userId: user.id
+            }
+        })
+
+        if (!project) {
+            return {
+                success: false,
+                error: "Project not found"
+            }
+        }
+
         await prisma.playground.delete({
             where: {
                 id
             }
         })
-        revalidatePath('/dashboard')
-    } catch (error) {
-        console.log(error);
 
+        revalidatePath("/dashboard")
+
+        return {
+            success: true
+        }
+    } catch (error) {
+        console.error(error)
+
+        return {
+            success: false,
+            error: "Delete failed"
+        }
     }
 }
 
@@ -132,49 +207,109 @@ export const toggleStarMark = async (playgroundId: string, newMarkedState: boole
         return { success: false, error: "Something went wrong", isMarked: newMarkedState }
     }
 }
-export const editProjectById = async (id: string, data: { title: string, description: string }) => {
+
+export const editProjectById = async (
+    id: string,
+    data: {
+        title: string
+        description: string
+    }
+): Promise<ActionResponse> => {
+    const user = await currentUser()
+
+    if (!user?.id) {
+        return {
+            success: false,
+            error: "Unauthorized"
+        }
+    }
+
     try {
-        // const {title, description} =data;
+        const project = await prisma.playground.findFirst({
+            where: {
+                id,
+                userId: user.id
+            }
+        })
+
+        if (!project) {
+            return {
+                success: false,
+                error: "Project not found"
+            }
+        }
 
         await prisma.playground.update({
             where: {
                 id
             },
-            data: data
+            data
         })
-        revalidatePath('/dashboard')
-    } catch (error) {
-        console.log(error);
 
+        revalidatePath("/dashboard")
+
+        return {
+            success: true
+        }
+    } catch (error) {
+        console.error(error)
+
+        return {
+            success: false,
+            error: "Update failed"
+        }
     }
 }
 
-export const duplicateProjectById = async (id: string) => {
+export const duplicateProjectById = async (
+    id: string
+): Promise<ActionResponse<Playground>> => {
+    const user = await currentUser()
+
+    if (!user?.id) {
+        return {
+            success: false,
+            error: "Unauthorized"
+        }
+    }
+
     try {
-        const OG = await prisma.playground.findUnique({
+        const original = await prisma.playground.findFirst({
             where: {
-                id
+                id,
+                userId: user.id
             }
-            //todo template files
         })
 
-        if (!OG) throw new Error("original playground not found")
+        if (!original) {
+            return {
+                success: false,
+                error: "Project not found"
+            }
+        }
 
-        const duplicatePlayground = await prisma.playground.create({
+        const duplicate = await prisma.playground.create({
             data: {
-                title: `${OG.title}(Copy)`,
-                description: `${OG.description}`,
-                template: `${OG.template}`,
-                userId: `${OG.userId}`,
-
-                // todo add template files
+                title: `${original.title} (Copy)`,
+                description: original.description,
+                template: original.template,
+                userId: user.id
             }
         })
 
-        revalidatePath('/dashboard')
-    } catch (error) {
-        console.log(error);
+        revalidatePath("/dashboard")
 
+        return {
+            success: true,
+            data: duplicate
+        }
+    } catch (error) {
+        console.error(error)
+
+        return {
+            success: false,
+            error: "Duplicate failed"
+        }
     }
 }
 
