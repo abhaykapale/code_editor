@@ -17,29 +17,34 @@ interface Templates {
   title: string;
   template: "REACT" | "NEXTJS" | "EXPRESS" | "VUE" | "HONO" | "ANGULAR";
   description?: string;
-  
+
 }
 const AddNewButton = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<Templates | null >(null)
 
   const router= useRouter()
-  
+
   const handleSubmit= async (data : Templates ) =>{
       setSelectedTemplate(data)
       const res= await createPlayground(data)
-      console.log(res)
+
+    if (!res.success || !res.data?.id) {
+        toast.error(res.error || "Something went wrong")
+        return
+    }
+
       setIsModalOpen(false)
       setSelectedTemplate(null)
-      router.push(`/playground/${res?.id}`)
+      router.push(`/playground/${res?.data?.id}`)
       toast.success("Project created successfully")
     }
-    
+
   return (
     <>
       <div
         onClick={() => setIsModalOpen(true)}
-        className="group px-6 py-6 flex flex-row justify-between items-center border rounded-lg bg-muted cursor-pointer 
+        className="group px-6 py-6 flex flex-row justify-between items-center border rounded-lg bg-muted cursor-pointer
         transition-all duration-300 ease-in-out
         hover:bg-background hover:border-[#E93F3F] hover:scale-[1.02]
         shadow-[0_2px_10px_rgba(0,0,0,0.08)]
@@ -55,7 +60,7 @@ const AddNewButton = () => {
           </Button>
           <div className="flex flex-col">
             <h1 className="text-xl font-bold text-[#e93f3f]">Add New</h1>
-            <p className="text-sm text-muted-foreground max-w-[220px]">Create a new playground</p>
+            <p className="text-sm text-muted-foreground max-w-[220px]"> Create  new playground</p>
           </div>
         </div>
 
@@ -69,7 +74,7 @@ const AddNewButton = () => {
           />
         </div>
       </div>
-      
+
        {/* Todo Implement Template Selecting Model here */}
        <TemplateSelectionModal
        isOpen ={isModalOpen}

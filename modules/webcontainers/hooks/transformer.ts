@@ -25,9 +25,9 @@ export function transformToWebContainerFormat(template: { folderName: string; it
     if (item.folderName && item.items) {
       // This is a directory
       const directoryContents: WebContainerFileSystem = {};
-      
+
       item.items.forEach(subItem => {
-        const key = subItem.fileExtension 
+        const key = subItem.fileExtension
           ? `${subItem.filename}.${subItem.fileExtension}`
           : subItem.folderName!;
         directoryContents[key] = processItem(subItem);
@@ -47,13 +47,13 @@ export function transformToWebContainerFormat(template: { folderName: string; it
   }
 
   const result: WebContainerFileSystem = {};
-  
+
   template.items.forEach(item => {
-    const key = item.fileExtension 
+    const key = item.fileExtension
       ? `${item.filename}.${item.fileExtension}`
       : item.folderName!;
     result[key] = processItem(item);
   });
 
   return result;
-}1
+}

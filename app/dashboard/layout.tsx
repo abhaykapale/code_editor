@@ -4,7 +4,7 @@ import { DashboardSidebar } from "@/modules/dashboard/components/dashboard-sideb
 import React from "react";
 
 export default async function DashboardLayout ( {children} :{children:React.ReactNode} ) {
-    
+
     const playgroundData =await getAllPlaygroundUser()
     const technologyIconMap : Record<string,string> = {
         REACT: "Zap",
@@ -15,14 +15,14 @@ export default async function DashboardLayout ( {children} :{children:React.Reac
         ANGULAR: "Terminal",
     }
 
-    const formattedPlaygroundData = playgroundData?.map((item)=> ({
-        id :item.id,
-        name: item.title,
-        //todo: star realted thing 
-        starred: item.starMarks?.[0]?.isMarked || false,
-        icon : technologyIconMap[item.template] || "Code2",
-    }))   ?? []
-
+    const formattedPlaygroundData = Array.isArray(playgroundData)
+      ? playgroundData.map((item) => ({
+          id: item.id,
+          name: item.title,
+          starred: item.starMarks?.[0]?.isMarked ?? false,
+          icon: technologyIconMap[item.template] ?? "Code2",
+        }))
+      : [];
 
 
     return (

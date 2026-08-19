@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { auth } from "../../../auth";
 
 interface ChatHistoryMessage {
   role: "user" | "assistant" | "system";
@@ -64,15 +65,14 @@ Response Format:
 * Include edge cases and optimization suggestions when relevant.
 * Be practical and solution-oriented.
 
-Never invent APIs, libraries, functions, or framework features that do not exist. If uncertain, explicitly state the uncertainty.`;
+                        Never invent APIs, libraries, functions, or framework features that do not exist. If uncertain, explicitly state the uncertainty.`;
 
   const fullMessages = [
     { role: "system" as const, content: systemPrompt },
     ...messages,
   ];
 
-  const prompt = fullMessages
-    .map((msg) => {
+  const prompt = fullMessages.map((msg) => {
       const label =
         msg.role === "system"
           ? "System"
@@ -80,9 +80,15 @@ Never invent APIs, libraries, functions, or framework features that do not exist
           ? "User"
           : "Assistant";
       return `${label}: ${msg.content}`;
-    })
-    .join("\n\n");
+    }).join("\n\n");
 
+const controller = new AbortController();
+
+const timeout = setTimeout(() => {
+  controller.abort();
+}, 60_000);
+
+try {
   const response = await fetch("http://localhost:11434/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -98,6 +104,7 @@ Never invent APIs, libraries, functions, or framework features that do not exist
         presence_penalty: 0,
       },
     }),
+    signal: controller.signal,
   });
 
   if (!response.ok) {
@@ -105,12 +112,18 @@ Never invent APIs, libraries, functions, or framework features that do not exist
   }
 
   const data = await response.json();
-  if (!data.response) throw new Error("No response from AI");
+
+  if (!data.response) {
+    throw new Error("No response from AI");
+  }
 
   return {
     text: data.response.trim(),
     tokens: data.eval_count ?? undefined,
   };
+} finally {
+  clearTimeout(timeout);
+}
 }
 
 // ---------------------------------------------------------------------------
@@ -118,10 +131,27 @@ Never invent APIs, libraries, functions, or framework features that do not exist
 // ---------------------------------------------------------------------------
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return Response.json(
+        {
+          error: "Unauthorized",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
     const body: ChatRequestBody = await request.json();
     const { messages: userMessage, history = [], model = "gpt-oss:20b" } = body;
 
-    if (!userMessage || typeof userMessage !== "string" || !userMessage.trim()) {
+    if (
+      !userMessage ||
+      typeof userMessage !== "string" ||
+      !userMessage.trim()
+    ) {
       return NextResponse.json({ error: "Invalid message" }, { status: 400 });
     }
 
@@ -129,8 +159,7 @@ export async function POST(request: NextRequest) {
     const validRoles = new Set(["user", "assistant", "system"]);
     const validHistory = Array.isArray(history)
       ? history.filter(
-          (msg) =>
-            typeof msg.content === "string" && validRoles.has(msg.role)
+          (msg) => typeof msg.content === "string" && validRoles.has(msg.role),
         )
       : [];
 
@@ -142,7 +171,8 @@ export async function POST(request: NextRequest) {
       { role: "user", content: userMessage.trim() },
     ];
 
-    const { text: aiResponse, tokens } = await generateAIResponse(messagesForAI);
+    const { text: aiResponse, tokens } =
+      await generateAIResponse(messagesForAI);
 
     return NextResponse.json(
       {
@@ -151,13 +181,23 @@ export async function POST(request: NextRequest) {
         model,
         timestamp: new Date().toISOString(),
       },
-      { status: 200 }
+      { status: 200 },
     );
   } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      return NextResponse.json(
+        {
+          error: "AI request timed out",
+        },
+        { status: 504 },
+      );
+    }
+
     console.error("[/api/chat] error:", error);
+
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
