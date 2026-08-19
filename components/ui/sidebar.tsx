@@ -418,7 +418,7 @@ function SidebarGroupAction({
   ...props
 }: React.ComponentProps<"button"> & { asChild?: boolean }) {
   const Comp = asChild ? Slot.Root : "button"
-
+   
   return (
     <Comp
       data-slot="sidebar-group-action"

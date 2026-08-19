@@ -1,15 +1,35 @@
-import {create} from 'zustand'
-import {toast} from 'sonner'
-import {TemplateFile,TemplateFolder} from '../lib/path-to-json'
-import { generateFileId } from '../lib';
-import { Field } from '@base-ui/react';
+import { create } from "zustand";
+import { toast } from "sonner";
+import { TemplateFile, TemplateFolder } from "../lib/path-to-json";
+import { generateFileId } from "../lib";
+import { WebContainer } from "@webcontainer/api";
 
 interface OpenFile extends TemplateFile {
-    id: string;
-    hasUnsavedChanges: boolean;
-    content: string;
-    originalContent: string;
+  id: string;
+  hasUnsavedChanges: boolean;
+  content: string;
+  originalContent: string;
+  path: string;
 }
+
+type ProjectStatus = "SYNCED" | "OUT_OF_SYNC";
+
+type SaveTemplateData = (data: TemplateFolder) => Promise<void>;
+
+type WriteFileSync = (path: string, content: string) => Promise<void>;
+
+type CreateFolderSync = (path: string) => Promise<void>;
+
+type DeleteFileSync = (path: string) => Promise<void>;
+
+type DeleteFolderSync = (path: string) => Promise<void>;
+
+type RenameFileSync = (oldPath: string, newPath: string) => Promise<void>;
+
+type RenameFolderSync = (oldPath: string, newPath: string) => Promise<void>;
+
+type RemountPersistedTree = () => Promise<void>;
+
 
 interface FileExplorerState {
   playgroundId: string;
@@ -17,364 +37,589 @@ interface FileExplorerState {
   openFiles: OpenFile[];
   activeFileId: string | null;
   editorContent: string;
+  projectStatus: ProjectStatus;
 
-  // Actions
   setPlaygroundId: (id: string) => void;
+
   setTemplateData: (data: TemplateFolder | null) => void;
+
   setEditorContent: (content: string) => void;
+
   setOpenFiles: (files: OpenFile[]) => void;
+
   setActiveFileId: (fileId: string | null) => void;
-  openFile: (file: TemplateFile) => void;
+
+  setProjectStatus: (status: ProjectStatus) => void;
+
+  openFile: (file: TemplateFile, filePath?: string) => void;
+
   closeFile: (fileId: string) => void;
+
   closeAllFiles: () => void;
 
   handleAddFile: (
     newFile: TemplateFile,
     parentPath: string,
-    writeFileSync: (filePath: string, content: string) => Promise<void>,
-    instance: any,
-    saveTemplateData: (data: TemplateFolder) => Promise<void>
+    saveTemplateData: SaveTemplateData,
+    writeFileSync: WriteFileSync,
+    remountPersistedTree?: RemountPersistedTree,
   ) => Promise<void>;
+
   handleAddFolder: (
-    newFolder: TemplateFolder, 
-    parentPath: string, 
-    instance: any, 
-    saveTemplateData: (data: TemplateFolder) => Promise<void>
+    newFolder: TemplateFolder,
+    parentPath: string,
+    saveTemplateData: SaveTemplateData,
+    createFolderSync: CreateFolderSync,
+    remountPersistedTree?: RemountPersistedTree,
   ) => Promise<void>;
+
   handleDeleteFile: (
-    file: TemplateFile, 
-    parentPath: string, 
-    saveTemplateData: (data: TemplateFolder) => Promise<void>
+    file: TemplateFile,
+    parentPath: string,
+    saveTemplateData: SaveTemplateData,
+    deleteFileSync?: DeleteFileSync,
+    remountPersistedTree?: RemountPersistedTree,
   ) => Promise<void>;
+
   handleDeleteFolder: (
     folder: TemplateFolder,
     parentPath: string,
-    saveTemplateData: (data: TemplateFolder) => Promise<void>
+    saveTemplateData: SaveTemplateData,
+    deleteFolderSync?: DeleteFolderSync,
+    remountPersistedTree?: RemountPersistedTree,
   ) => Promise<void>;
+
   handleRenameFile: (
     file: TemplateFile,
     newFilename: string,
     newExtension: string,
     parentPath: string,
-    saveTemplateData: (data: TemplateFolder) => Promise<void>
+    saveTemplateData: SaveTemplateData,
+    renameFileSync?: RenameFileSync,
+    remountPersistedTree?: RemountPersistedTree,
   ) => Promise<void>;
+
   handleRenameFolder: (
     folder: TemplateFolder,
     newFolderName: string,
     parentPath: string,
-    saveTemplateData: (data: TemplateFolder) => Promise<void>
+    saveTemplateData: SaveTemplateData,
+    renameFolderSync?: RenameFolderSync,
+    remountPersistedTree?: RemountPersistedTree,
   ) => Promise<void>;
+
   updateFileContent: (fileId: string, content: string) => void;
 }
-//@ts-ignore
+
+function cloneTemplateData(templateData: TemplateFolder): TemplateFolder {
+  return structuredClone(templateData);
+}
+
+function getFilePath(parentPath: string, file: TemplateFile): string {
+  const filename = file.fileExtension
+    ? `${file.filename}.${file.fileExtension}`
+    : file.filename;
+
+  return parentPath ? `${parentPath}/${filename}` : filename;
+}
+
+function getFolderPath(parentPath: string, folderName: string): string {
+  return parentPath ? `${parentPath}/${folderName}` : folderName;
+}
+
+function findFolder(root: TemplateFolder, folderPath: string): TemplateFolder {
+  const pathParts = folderPath.split("/").filter(Boolean);
+
+  let currentFolder = root;
+
+  for (const part of pathParts) {
+    const nextFolder = currentFolder.items.find(
+      (item) => "folderName" in item && item.folderName === part,
+    ) as TemplateFolder | undefined;
+
+    if (!nextFolder) {
+      throw new Error(`Folder not found: ${folderPath}`);
+    }
+
+    currentFolder = nextFolder;
+  }
+
+  return currentFolder;
+}
+
+function collectFilePaths(folder: TemplateFolder, parentPath = ""): string[] {
+  const paths: string[] = [];
+
+  for (const item of folder.items) {
+    if ("filename" in item) {
+      paths.push(getFilePath(parentPath, item));
+    } else {
+      const folderPath = getFolderPath(parentPath, item.folderName);
+
+      paths.push(...collectFilePaths(item, folderPath));
+    }
+  }
+
+  return paths;
+}
+
 export const useFileExplorer = create<FileExplorerState>((set, get) => ({
-    templateData: null,
-    playgroundId: "",
-    openFiles: [] satisfies OpenFile[],
-    activeFileId: null,
-    editorContent: "",
 
-    setTemplateData: (data) =>
-        set({ templateData: data }),
+  
+  templateData: null,
 
-    setPlaygroundId: (id) =>
-        set({ playgroundId: id }),
+  playgroundId: "",
 
-    setEditorContent: (content) => {
-        const { openFiles, activeFileId } = get();
-        const updatedOpenFiles = openFiles.map((file) => {
-            if (file.id === activeFileId) {
-                return {
-                    ...file,
-                    content,
-                    hasUnsavedChanges: content !== file.originalContent,
-                };
-            }
-            return file;
-        });
-        set({ editorContent: content, openFiles: updatedOpenFiles });
-    },
+  openFiles: [],
 
-    setOpenFiles: (files) =>
-        set({ openFiles: files }),
+  activeFileId: null,
 
-    setActiveFileId: (fileId) =>
-        set({ activeFileId: fileId }),
+  editorContent: "",
 
-    openFile: (file)=>{
-    const fileId = generateFileId(
-        file,
-        get().templateData!
-    );
+  projectStatus: "SYNCED",
 
-    const { openFiles } = get();
+  setPlaygroundId: (id) =>
+    set({
+      playgroundId: id,
+    }),
 
-    const existingFile =
-        openFiles.find(
-            (f)=>f.id===fileId
-        );
+  setTemplateData: (data) =>
+    set({
+      templateData: data,
+    }),
 
-    if(existingFile){
+  setEditorContent: (content) => {
+    const { openFiles, activeFileId } = get();
 
-        set({
-            activeFileId:fileId,
-            editorContent:
-                existingFile.content
-        });
+    const updatedOpenFiles = openFiles.map((file) => {
+      if (file.id === activeFileId) {
+        return {
+          ...file,
+          content,
+          hasUnsavedChanges: content !== file.originalContent,
+        };
+      }
 
-        return;
+      return file;
+    });
+
+    set({
+      editorContent: content,
+      openFiles: updatedOpenFiles,
+    });
+  },
+
+  setOpenFiles: (files) =>
+    set({
+      openFiles: files,
+    }),
+
+  setActiveFileId: (fileId) =>
+    set({
+      activeFileId: fileId,
+    }),
+
+  setProjectStatus: (status) =>
+    set({
+      projectStatus: status,
+    }),
+
+  openFile: (file, filePath) => {
+    const templateData = get().templateData;
+
+    if (!templateData) return;
+
+    const resolvedPath = filePath ?? getFilePath("", file);
+
+    const fileId = generateFileId(file, templateData);
+
+    const existingFile = get().openFiles.find((f) => f.id === fileId);
+
+    if (existingFile) {
+      set({
+        activeFileId: fileId,
+        editorContent: existingFile.content,
+      });
+
+      return;
     }
 
     const newOpenFile: OpenFile = {
-
-        ...file,
-
-        id:fileId,
-
-        hasUnsavedChanges:false,
-
-        content:
-            file.content || "",
-
-        originalContent:
-            file.content || "",
-
+      ...file,
+      id: fileId,
+      path: resolvedPath,
+      hasUnsavedChanges: false,
+      content: file.content || "",
+      originalContent: file.content || "",
     };
 
-    set((state)=>({
-
-        openFiles:[
-            ...state.openFiles,
-            newOpenFile
-        ],
-
-        activeFileId:fileId,
-
-        editorContent:
-            file.content || "",
-
+    set((state) => ({
+      openFiles: [...state.openFiles, newOpenFile],
+      activeFileId: fileId,
+      editorContent: file.content || "",
     }));
-},
+  },
 
-
-   closeFile: (fileId) => {
+  closeFile: (fileId) => {
     const { openFiles, activeFileId } = get();
 
-    const newFiles = openFiles.filter(
-        (f) => f.id !== fileId
-    );
+    const newFiles = openFiles.filter((file) => file.id !== fileId);
 
     let newActiveFileId = activeFileId;
+
     let newEditorContent = get().editorContent;
 
-    // If closing active file
     if (activeFileId === fileId) {
-        if (newFiles.length > 0) {
-            const lastFile =
-                newFiles[newFiles.length - 1];
+      if (newFiles.length > 0) {
+        const lastFile = newFiles[newFiles.length - 1];
 
-            newActiveFileId =
-                lastFile.id;
+        newActiveFileId = lastFile.id;
 
-            newEditorContent =
-                lastFile.content;
-        } else {
-            newActiveFileId = null;
-            newEditorContent = "";
-        }
+        newEditorContent = lastFile.content;
+      } else {
+        newActiveFileId = null;
+        newEditorContent = "";
+      }
     }
 
     set({
-        openFiles: newFiles,
-        activeFileId: newActiveFileId,
-        editorContent: newEditorContent,
+      openFiles: newFiles,
+      activeFileId: newActiveFileId,
+      editorContent: newEditorContent,
     });
-},
+  },
 
-   closeAllFiles: () => {
+  closeAllFiles: () => {
     set({
-        openFiles: [],
-        activeFileId: null,
-        editorContent: "",
+      openFiles: [],
+      activeFileId: null,
+      editorContent: "",
     });
-},
+  },
 
-
-handleAddFile: async (newFile, parentPath, writeFileSync, instance, saveTemplateData) => {
+  handleAddFile: async (
+    newFile,
+    parentPath,
+    saveTemplateData,
+    writeFileSync,
+    remountPersistedTree,
+  ) => {
     const { templateData } = get();
+
     if (!templateData) return;
 
     try {
-      const updatedTemplateData = JSON.parse(JSON.stringify(templateData)) as TemplateFolder;
-      const pathParts = parentPath.split("/");
-      let currentFolder = updatedTemplateData;
+      const updatedTemplateData = cloneTemplateData(templateData);
 
-      for (const part of pathParts) {
-        if (part) {
-          const nextFolder = currentFolder.items.find(
-            (item) => "folderName" in item && item.folderName === part
-          ) as TemplateFolder;
-          if (nextFolder) currentFolder = nextFolder;
-        }
+      const currentFolder = findFolder(updatedTemplateData, parentPath);
+
+      const fileExists = currentFolder.items.some(
+        (item) =>
+          "filename" in item &&
+          item.filename === newFile.filename &&
+          item.fileExtension === newFile.fileExtension,
+      );
+
+      if (fileExists) {
+        throw new Error(
+          `File already exists: ${getFilePath(parentPath, newFile)}`,
+        );
       }
 
       currentFolder.items.push(newFile);
-      set({ templateData: updatedTemplateData });
-      toast.success(`Created file: ${newFile.filename}.${newFile.fileExtension}`);
 
-      // Use the passed saveTemplateData function
+      const filePath = getFilePath(parentPath, newFile);
+
       await saveTemplateData(updatedTemplateData);
 
-      // Sync with web container
-      if (writeFileSync) {
-        const filePath = parentPath
-          ? `${parentPath}/${newFile.filename}.${newFile.fileExtension}`
-          : `${newFile.filename}.${newFile.fileExtension}`;
+      try {
         await writeFileSync(filePath, newFile.content || "");
+      } catch (runtimeError) {
+        console.error("WebContainer synchronization failed:", runtimeError);
+
+        set({
+          templateData: updatedTemplateData,
+          projectStatus: "OUT_OF_SYNC",
+        });
+
+        if (remountPersistedTree) {
+          try {
+            await remountPersistedTree();
+
+            set({
+              projectStatus: "SYNCED",
+            });
+          } catch (remountError) {
+            console.error("Failed to remount persisted tree:", remountError);
+          }
+        }
+
+        throw new Error(
+          "File was saved but WebContainer synchronization failed.",
+        );
       }
 
-      get().openFile(newFile);
+      set({
+        templateData: updatedTemplateData,
+        projectStatus: "SYNCED",
+      });
+
+      get().openFile(newFile, filePath);
+
+      toast.success(`Created file: ${filePath}`);
     } catch (error) {
       console.error("Error adding file:", error);
-      toast.error("Failed to create file");
+
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create file",
+      );
     }
   },
-  
-handleAddFolder: async (newFolder, parentPath, instance, saveTemplateData) => {
+
+  handleAddFolder: async (
+    newFolder,
+    parentPath,
+    saveTemplateData,
+    createFolderSync,
+    remountPersistedTree,
+  ) => {
     const { templateData } = get();
+
     if (!templateData) return;
 
     try {
-      const updatedTemplateData = JSON.parse(JSON.stringify(templateData)) as TemplateFolder;
-      const pathParts = parentPath.split("/");
-      let currentFolder = updatedTemplateData;
+      const updatedTemplateData = cloneTemplateData(templateData);
 
-      for (const part of pathParts) {
-        if (part) {
-          const nextFolder = currentFolder.items.find(
-            (item) => "folderName" in item && item.folderName === part
-          ) as TemplateFolder;
-          if (nextFolder) currentFolder = nextFolder;
-        }
+      const currentFolder = findFolder(updatedTemplateData, parentPath);
+
+      const folderExists = currentFolder.items.some(
+        (item) =>
+          "folderName" in item && item.folderName === newFolder.folderName,
+      );
+
+      if (folderExists) {
+        throw new Error(
+          `Folder already exists: ${getFolderPath(
+            parentPath,
+            newFolder.folderName,
+          )}`,
+        );
       }
 
       currentFolder.items.push(newFolder);
-      set({ templateData: updatedTemplateData });
-      toast.success(`Created folder: ${newFolder.folderName}`);
 
-      // Use the passed saveTemplateData function
+      const folderPath = getFolderPath(parentPath, newFolder.folderName);
+
       await saveTemplateData(updatedTemplateData);
 
-      // Sync with web container
-      if (instance && instance.fs) {
-        const folderPath = parentPath
-          ? `${parentPath}/${newFolder.folderName}`
-          : newFolder.folderName;
-        await instance.fs.mkdir(folderPath, { recursive: true });
+      try {
+        await createFolderSync(folderPath);
+      } catch (runtimeError) {
+        console.error("WebContainer synchronization failed:", runtimeError);
+
+        set({
+          templateData: updatedTemplateData,
+          projectStatus: "OUT_OF_SYNC",
+        });
+
+        if (remountPersistedTree) {
+          try {
+            await remountPersistedTree();
+
+            set({
+              projectStatus: "SYNCED",
+            });
+          } catch (remountError) {
+            console.error("Failed to remount persisted tree:", remountError);
+          }
+        }
+
+        throw new Error(
+          "Folder was saved but WebContainer synchronization failed.",
+        );
       }
+
+      set({
+        templateData: updatedTemplateData,
+        projectStatus: "SYNCED",
+      });
+
+      toast.success(`Created folder: ${folderPath}`);
     } catch (error) {
       console.error("Error adding folder:", error);
-      toast.error("Failed to create folder");
+
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create folder",
+      );
     }
   },
 
-  handleDeleteFile: async (file, parentPath, saveTemplateData) => {
+  handleDeleteFile: async (
+    file,
+    parentPath,
+    saveTemplateData,
+    deleteFileSync,
+    remountPersistedTree,
+  ) => {
     const { templateData, openFiles } = get();
+
     if (!templateData) return;
 
+    const filePath = getFilePath(parentPath, file);
+
     try {
-      const updatedTemplateData = JSON.parse(
-        JSON.stringify(templateData)
-      ) as TemplateFolder;
-      const pathParts = parentPath.split("/");
-      let currentFolder = updatedTemplateData;
+      const updatedTemplateData = cloneTemplateData(templateData);
 
-      for (const part of pathParts) {
-        if (part) {
-          const nextFolder = currentFolder.items.find(
-            (item) => "folderName" in item && item.folderName === part
-          ) as TemplateFolder;
-          if (nextFolder) currentFolder = nextFolder;
-        }
-      }
+      const currentFolder = findFolder(updatedTemplateData, parentPath);
 
-      currentFolder.items = currentFolder.items.filter(
+      const fileIndex = currentFolder.items.findIndex(
         (item) =>
-          !("filename" in item) ||
-          item.filename !== file.filename ||
-          item.fileExtension !== file.fileExtension
+          "filename" in item &&
+          item.filename === file.filename &&
+          item.fileExtension === file.fileExtension,
       );
 
-      // Find and close the file if it's open
-      // Use the same ID generation logic as in openFile
+      if (fileIndex === -1) {
+        throw new Error(`File not found: ${filePath}`);
+      }
+
+      currentFolder.items.splice(fileIndex, 1);
+
       const fileId = generateFileId(file, templateData);
-      const openFile = openFiles.find((f) => f.id === fileId);
-      
-      if (openFile) {
-        // Close the file using the closeFile method
+
+      if (openFiles.some((openFile) => openFile.id === fileId)) {
         get().closeFile(fileId);
       }
 
-      set({ templateData: updatedTemplateData });
-
-      // Use the passed saveTemplateData function
       await saveTemplateData(updatedTemplateData);
-      toast.success(`Deleted file: ${file.filename}.${file.fileExtension}`);
-    } catch (error) {
-      console.error("Error deleting file:", error);
-      toast.error("Failed to delete file");
-    }
-  },
 
-  handleDeleteFolder: async (folder, parentPath, saveTemplateData) => {
-    const { templateData } = get();
-    if (!templateData) return;
+      if (deleteFileSync) {
+        try {
+          await deleteFileSync(filePath);
+        } catch (runtimeError) {
+          console.error("WebContainer synchronization failed:", runtimeError);
 
-    try {
-      const updatedTemplateData = JSON.parse(
-        JSON.stringify(templateData)
-      ) as TemplateFolder;
-      const pathParts = parentPath.split("/");
-      let currentFolder = updatedTemplateData;
+          set({
+            templateData: updatedTemplateData,
+            projectStatus: "OUT_OF_SYNC",
+          });
 
-      for (const part of pathParts) {
-        if (part) {
-          const nextFolder = currentFolder.items.find(
-            (item) => "folderName" in item && item.folderName === part
-          ) as TemplateFolder;
-          if (nextFolder) currentFolder = nextFolder;
+          if (remountPersistedTree) {
+            try {
+              await remountPersistedTree();
+
+              set({
+                projectStatus: "SYNCED",
+              });
+            } catch (remountError) {
+              console.error("Failed to remount persisted tree:", remountError);
+            }
+          }
+
+          throw new Error(
+            "File was saved but WebContainer synchronization failed.",
+          );
         }
       }
 
-      currentFolder.items = currentFolder.items.filter(
-        (item) =>
-          !("folderName" in item) || item.folderName !== folder.folderName
+      set({
+        templateData: updatedTemplateData,
+        projectStatus: "SYNCED",
+      });
+
+      toast.success(`Deleted file: ${filePath}`);
+    } catch (error) {
+      console.error("Error deleting file:", error);
+
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete file",
+      );
+    }
+  },
+
+  handleDeleteFolder: async (
+    folder,
+    parentPath,
+    saveTemplateData,
+    deleteFolderSync,
+    remountPersistedTree,
+  ) => {
+    const { templateData } = get();
+
+    if (!templateData) return;
+
+    const folderPath = getFolderPath(parentPath, folder.folderName);
+
+    try {
+      const updatedTemplateData = cloneTemplateData(templateData);
+
+      const currentFolder = findFolder(updatedTemplateData, parentPath);
+
+      const folderIndex = currentFolder.items.findIndex(
+        (item) => "folderName" in item && item.folderName === folder.folderName,
       );
 
-      // Close all files in the deleted folder recursively
-      const closeFilesInFolder = (folder: TemplateFolder, currentPath: string = "") => {
-        folder.items.forEach((item) => {
-          if ("filename" in item) {
-            // Generate the correct file ID using the same logic as openFile
-            const fileId = generateFileId(item, templateData);
-            get().closeFile(fileId);
-          } else if ("folderName" in item) {
-            const newPath = currentPath ? `${currentPath}/${item.folderName}` : item.folderName;
-            closeFilesInFolder(item, newPath);
-          }
-        });
-      };
-      
-      closeFilesInFolder(folder, parentPath ? `${parentPath}/${folder.folderName}` : folder.folderName);
+      if (folderIndex === -1) {
+        throw new Error(`Folder not found: ${folderPath}`);
+      }
 
-      set({ templateData: updatedTemplateData });
+      currentFolder.items.splice(folderIndex, 1);
 
-      // Use the passed saveTemplateData function
+      const deletedFilePaths = collectFilePaths(folder, folderPath);
+
+      const openFiles = get().openFiles;
+
+      const affectedFiles = openFiles.filter((openFile) =>
+        deletedFilePaths.includes(openFile.path),
+      );
+
+      for (const openFile of affectedFiles) {
+        get().closeFile(openFile.id);
+      }
+
       await saveTemplateData(updatedTemplateData);
-      toast.success(`Deleted folder: ${folder.folderName}`);
+
+      if (deleteFolderSync) {
+        try {
+          await deleteFolderSync(folderPath);
+        } catch (runtimeError) {
+          console.error("WebContainer synchronization failed:", runtimeError);
+
+          set({
+            templateData: updatedTemplateData,
+            projectStatus: "OUT_OF_SYNC",
+          });
+
+          if (remountPersistedTree) {
+            try {
+              await remountPersistedTree();
+
+              set({
+                projectStatus: "SYNCED",
+              });
+            } catch (remountError) {
+              console.error("Failed to remount persisted tree:", remountError);
+            }
+          }
+
+          throw new Error(
+            "Folder was saved but WebContainer synchronization failed.",
+          );
+        }
+      }
+
+      set({
+        templateData: updatedTemplateData,
+        projectStatus: "SYNCED",
+      });
+
+      toast.success(`Deleted folder: ${folderPath}`);
     } catch (error) {
       console.error("Error deleting folder:", error);
-      toast.error("Failed to delete folder");
+
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete folder",
+      );
     }
   },
 
@@ -383,115 +628,235 @@ handleAddFolder: async (newFolder, parentPath, instance, saveTemplateData) => {
     newFilename,
     newExtension,
     parentPath,
-    saveTemplateData
+    saveTemplateData,
+    renameFileSync,
+    remountPersistedTree,
   ) => {
     const { templateData, openFiles, activeFileId } = get();
+
     if (!templateData) return;
 
-    // Generate old and new file IDs using the same logic as openFile
+    const oldPath = getFilePath(parentPath, file);
+
+    const newFile: TemplateFile = {
+      ...file,
+      filename: newFilename,
+      fileExtension: newExtension,
+    };
+
+    const newPath = getFilePath(parentPath, newFile);
+
     const oldFileId = generateFileId(file, templateData);
-    const newFile = { ...file, filename: newFilename, fileExtension: newExtension };
+
     const newFileId = generateFileId(newFile, templateData);
 
     try {
-      const updatedTemplateData = JSON.parse(
-        JSON.stringify(templateData)
-      ) as TemplateFolder;
-      const pathParts = parentPath.split("/");
-      let currentFolder = updatedTemplateData;
+      const updatedTemplateData = cloneTemplateData(templateData);
 
-      for (const part of pathParts) {
-        if (part) {
-          const nextFolder = currentFolder.items.find(
-            (item) => "folderName" in item && item.folderName === part
-          ) as TemplateFolder;
-          if (nextFolder) currentFolder = nextFolder;
-        }
-      }
+      const currentFolder = findFolder(updatedTemplateData, parentPath);
 
       const fileIndex = currentFolder.items.findIndex(
         (item) =>
           "filename" in item &&
           item.filename === file.filename &&
-          item.fileExtension === file.fileExtension
+          item.fileExtension === file.fileExtension,
       );
 
-      if (fileIndex !== -1) {
-        const updatedFile = {
-          ...currentFolder.items[fileIndex],
+      if (fileIndex === -1) {
+        throw new Error(`File not found: ${oldPath}`);
+      }
+
+      const duplicateFile = currentFolder.items.some(
+        (item, index) =>
+          index !== fileIndex &&
+          "filename" in item &&
+          item.filename === newFilename &&
+          item.fileExtension === newExtension,
+      );
+
+      if (duplicateFile) {
+        throw new Error(`File already exists: ${newPath}`);
+      }
+
+      currentFolder.items[fileIndex] = newFile;
+
+      const updatedOpenFiles = openFiles.map((openFile) => {
+        if (openFile.id !== oldFileId) {
+          return openFile;
+        }
+
+        return {
+          ...openFile,
+          id: newFileId,
           filename: newFilename,
           fileExtension: newExtension,
-        } as TemplateFile;
-        currentFolder.items[fileIndex] = updatedFile;
+          path: newPath,
+        };
+      });
 
-        // Update open files with new ID and names
-        const updatedOpenFiles = openFiles.map((f) =>
-          f.id === oldFileId
-            ? {
-                ...f,
-                id: newFileId,
-                filename: newFilename,
-                fileExtension: newExtension,
-              }
-            : f
-        );
+      await saveTemplateData(updatedTemplateData);
 
-        set({
-          templateData: updatedTemplateData,
-          openFiles: updatedOpenFiles,
-          activeFileId: activeFileId === oldFileId ? newFileId : activeFileId,
-        });
+      if (renameFileSync) {
+        try {
+          await renameFileSync(oldPath, newPath);
+        } catch (runtimeError) {
+          console.error("WebContainer synchronization failed:", runtimeError);
 
-        // Use the passed saveTemplateData function
-        await saveTemplateData(updatedTemplateData);
-        toast.success(`Renamed file to: ${newFilename}.${newExtension}`);
-      }
-    } catch (error) {
-      console.error("Error renaming file:", error);
-      toast.error("Failed to rename file");
-    }
-  },
+          set({
+            templateData: updatedTemplateData,
+            openFiles: updatedOpenFiles,
+            activeFileId: activeFileId === oldFileId ? newFileId : activeFileId,
+            projectStatus: "OUT_OF_SYNC",
+          });
 
-  handleRenameFolder: async (folder, newFolderName, parentPath, saveTemplateData) => {
-    const { templateData } = get();
-    if (!templateData) return;
+          if (remountPersistedTree) {
+            try {
+              await remountPersistedTree();
 
-    try {
-      const updatedTemplateData = JSON.parse(
-        JSON.stringify(templateData)
-      ) as TemplateFolder;
-      const pathParts = parentPath.split("/");
-      let currentFolder = updatedTemplateData;
+              set({
+                projectStatus: "SYNCED",
+              });
+            } catch (remountError) {
+              console.error("Failed to remount persisted tree:", remountError);
+            }
+          }
 
-      for (const part of pathParts) {
-        if (part) {
-          const nextFolder = currentFolder.items.find(
-            (item) => "folderName" in item && item.folderName === part
-          ) as TemplateFolder;
-          if (nextFolder) currentFolder = nextFolder;
+          throw new Error(
+            "File was renamed in the project but WebContainer synchronization failed.",
+          );
         }
       }
 
+      set({
+        templateData: updatedTemplateData,
+        openFiles: updatedOpenFiles,
+        activeFileId: activeFileId === oldFileId ? newFileId : activeFileId,
+        projectStatus: "SYNCED",
+      });
+
+      toast.success(`Renamed file to: ${newPath}`);
+    } catch (error) {
+      console.error("Error renaming file:", error);
+
+      toast.error(
+        error instanceof Error ? error.message : "Failed to rename file",
+      );
+    }
+  },
+
+  handleRenameFolder: async (
+    folder,
+    newFolderName,
+    parentPath,
+    saveTemplateData,
+    renameFolderSync,
+    remountPersistedTree,
+  ) => {
+    const { templateData, openFiles, activeFileId } = get();
+
+    if (!templateData) return;
+
+    const oldFolderPath = getFolderPath(parentPath, folder.folderName);
+
+    const newFolderPath = getFolderPath(parentPath, newFolderName);
+
+    try {
+      const updatedTemplateData = cloneTemplateData(templateData);
+
+      const currentFolder = findFolder(updatedTemplateData, parentPath);
+
       const folderIndex = currentFolder.items.findIndex(
-        (item) => "folderName" in item && item.folderName === folder.folderName
+        (item) => "folderName" in item && item.folderName === folder.folderName,
       );
 
-      if (folderIndex !== -1) {
-        const updatedFolder = {
-          ...currentFolder.items[folderIndex],
-          folderName: newFolderName,
-        } as TemplateFolder;
-        currentFolder.items[folderIndex] = updatedFolder;
-
-        set({ templateData: updatedTemplateData });
-
-        // Use the passed saveTemplateData function
-        await saveTemplateData(updatedTemplateData);
-        toast.success(`Renamed folder to: ${newFolderName}`);
+      if (folderIndex === -1) {
+        throw new Error(`Folder not found: ${oldFolderPath}`);
       }
+
+      const duplicateFolder = currentFolder.items.some(
+        (item, index) =>
+          index !== folderIndex &&
+          "folderName" in item &&
+          item.folderName === newFolderName,
+      );
+
+      if (duplicateFolder) {
+        throw new Error(`Folder already exists: ${newFolderPath}`);
+      }
+
+      const updatedFolder = {
+        ...currentFolder.items[folderIndex],
+        folderName: newFolderName,
+      } as TemplateFolder;
+
+      currentFolder.items[folderIndex] = updatedFolder;
+
+      const updatedOpenFiles = openFiles.map((openFile) => {
+        const isInsideFolder =
+          openFile.path === oldFolderPath ||
+          openFile.path.startsWith(`${oldFolderPath}/`);
+
+        if (!isInsideFolder) {
+          return openFile;
+        }
+
+        const newPath = `${newFolderPath}${openFile.path.slice(
+          oldFolderPath.length,
+        )}`;
+
+        return {
+          ...openFile,
+          path: newPath,
+        };
+      });
+
+      await saveTemplateData(updatedTemplateData);
+
+      if (renameFolderSync) {
+        try {
+          await renameFolderSync(oldFolderPath, newFolderPath);
+        } catch (runtimeError) {
+          console.error("WebContainer synchronization failed:", runtimeError);
+
+          set({
+            templateData: updatedTemplateData,
+            openFiles: updatedOpenFiles,
+            activeFileId,
+            projectStatus: "OUT_OF_SYNC",
+          });
+
+          if (remountPersistedTree) {
+            try {
+              await remountPersistedTree();
+
+              set({
+                projectStatus: "SYNCED",
+              });
+            } catch (remountError) {
+              console.error("Failed to remount persisted tree:", remountError);
+            }
+          }
+
+          throw new Error(
+            "Folder was renamed in the project but WebContainer synchronization failed.",
+          );
+        }
+      }
+
+      set({
+        templateData: updatedTemplateData,
+        openFiles: updatedOpenFiles,
+        activeFileId,
+        projectStatus: "SYNCED",
+      });
+
+      toast.success(`Renamed folder to: ${newFolderPath}`);
     } catch (error) {
       console.error("Error renaming folder:", error);
-      toast.error("Failed to rename folder");
+
+      toast.error(
+        error instanceof Error ? error.message : "Failed to rename folder",
+      );
     }
   },
 
@@ -504,8 +869,9 @@ handleAddFolder: async (newFolder, parentPath, instance, saveTemplateData) => {
               content,
               hasUnsavedChanges: content !== file.originalContent,
             }
-          : file
+          : file,
       ),
+
       editorContent:
         fileId === state.activeFileId ? content : state.editorContent,
     }));

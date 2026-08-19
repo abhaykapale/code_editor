@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "../../../auth";
 
 const DEFAULT_CONTEXT_RADIUS = 10;
 
@@ -41,6 +42,19 @@ interface CodeContext {
 
 export async function POST(request: NextRequest) {
     try {
+
+        const session = await auth();
+
+        if (!session?.user?.id) {
+          return Response.json(
+            {
+              error: "Unauthorized",
+            },
+            {
+              status: 401,
+            },
+          );
+        }
         const body: CodeSuggestionRequest = await request.json();
 
         const {
@@ -66,11 +80,11 @@ export async function POST(request: NextRequest) {
         );
 
         const prompt = buildPrompt(context, suggestionType);
-        const suggestion = await generateSuggestion(prompt);
+        // const suggestion = await generateSuggestion(prompt);
 
         return NextResponse.json({
             success: true,
-            suggestion,
+            // suggestion,
             context,
             metadata: {
                 generatedAt: new Date().toISOString()
@@ -293,8 +307,8 @@ async function generateSuggestion(prompt: string) {
                     model: "gpt-oss:20b",
                     prompt,
                     stream: false,
-                    options: {                   // ✅ Fix 3: was "option"
-                        temperature: 0.7,        // ✅ Fix 2: was "temparature"
+                    options: {
+                        temperature: 0.7,
                         max_tokens: 300,
                     }
                 })
@@ -308,13 +322,13 @@ async function generateSuggestion(prompt: string) {
 
         if (suggestion.includes("```")) {
             const codeMatch = suggestion.match(/```[\w]*\n?([\s\S]*?)```/);
-            suggestion = codeMatch ? codeMatch[1].trim() : suggestion; // ✅ Fix 1: was "suggestion -"
+            suggestion = codeMatch ? codeMatch[1].trim() : suggestion;
         }
 
         return suggestion;
 
     } catch (error) {
-        console.error(error); // ✅ Fix 5: was console.log
+        console.error(error); //  Fix 5: was console.log
         // return "AI suggestion unavailable";
         return null;
     }

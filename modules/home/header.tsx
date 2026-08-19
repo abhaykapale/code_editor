@@ -13,7 +13,7 @@ export function Header() {
           <div className="flex items-center justify-center w-full flex-col">
             <div
               className={`
-                            flex items-center justify-between bg-linear-to-b from-white/90 via-gray-50/90 to-white/90 dark:from-zinc-900/90 dark:via-zinc-800/90 dark:to-zinc-900/90 shadow-[0_2px_20px_-2px_rgba(0,0,0,0.1)] backdrop-blur-md border-x border-b 
+                            flex items-center justify-between bg-linear-to-b from-white/90 via-gray-50/90 to-white/90 dark:from-zinc-900/90 dark:via-zinc-800/90 dark:to-zinc-900/90 shadow-[0_2px_20px_-2px_rgba(0,0,0,0.1)] backdrop-blur-md border-x border-b
                             border-[rgba(230,230,230,0.7)] dark:border-[rgba(70,70,70,0.7)]
                             w-full sm:min-w-[800px] sm:max-w-[1200px]
                             rounded-b-[28px]
@@ -57,19 +57,19 @@ export function Header() {
                   <span className="text-zinc-300 dark:text-zinc-700">|</span>
                   {/* Desktop Navigation Links */}
                   <div className="hidden sm:flex items-center gap-4">
-                    <Link
+                    {/* <Link
                       href="/docs/components/background-paths"
                       className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
                     >
                       Docs
-                    </Link>
+                    </Link> */}
                     {/* <Link
                                             href="/pricing"
                                             className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
                                         >
                                             Pricing
                                         </Link> */}
-                    <Link
+                    {/* <Link
                       href="https://codesnippetui.pro/templates?utm_source=codesnippetui.com&utm_medium=header"
                       target="_blank"
                       className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors flex items-center gap-2"
@@ -78,7 +78,7 @@ export function Header() {
                       <span className="text-green-500 dark:text-green-400 border border-green-500 dark:border-green-400 rounded-lg px-1 py-0.5 text-xs">
                         New
                       </span>
-                    </Link>
+                    </Link> */}
                   </div>
                 </div>
 
@@ -92,18 +92,18 @@ export function Header() {
 
                 {/* Mobile Navigation remains unchanged */}
                 <div className="flex sm:hidden items-center gap-4">
-                  <Link
+                  {/* <Link
                     href="/docs/components/action-search-bar"
                     className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
                   >
                     Docs
-                  </Link>
-                  <Link
+                  </Link> */}
+                  {/* <Link
                     href="/pricing"
                     className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
                   >
                     API
-                  </Link>
+                  </Link> */}
                   <ThemeToggle />
                   <UserButton/>
                 </div>

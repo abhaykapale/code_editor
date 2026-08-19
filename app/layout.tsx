@@ -7,8 +7,6 @@ import { auth } from "@/auth";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
-// import {ThemeProvider} from "next-themes"
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -33,37 +31,29 @@ export default async function RootLayout({
 
   return (
     <html
-      lang="en"
+      lang='en'
       suppressHydrationWarning
       className={cn(
         "h-full",
         "antialiased",
         geistSans.variable,
-        geistMono.variable
-      )}
-    >
-      <body className="min-h-full flex flex-col font-sans">
-
-        <SessionProvider session={session}>
+        geistMono.variable,
+      )}>
+      <body className='min-h-full flex flex-col font-sans'>
+        <SessionProvider session={session} refetchOnWindowFocus={false}>
           <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
+            attribute='class'
+            defaultTheme='system'
             enableSystem
-            disableTransitionOnChange
-          >
-
+            disableTransitionOnChange>
             <TooltipProvider>
-              <div className="flex flex-col min-h-screen">
+              <div className='flex flex-col min-h-screen'>
                 <Toaster />
-                <div className="flex-1">
-                  {children}
-                </div>
+                <div className='flex-1'>{children}</div>
               </div>
             </TooltipProvider>
-
           </ThemeProvider>
         </SessionProvider>
-
       </body>
     </html>
   );

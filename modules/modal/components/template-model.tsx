@@ -28,7 +28,7 @@ import {
 import Image from "next/image";
 import { useState } from "react";
 
-// TemplateSelectionModal.tsx
+
 type TemplateSelectionModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -194,13 +194,13 @@ const TemplateSelectionModal = ({
       };
 
       const template = templates.find((t) => t.id === selectedTemplate);
-      
+
       onSubmit({
             title:projectName || `New ${template?.name} Project`,
             template:templateMap[selectedTemplate] || "REACT",
             description: template?.description
           })
-     
+
       onClose();
       // Reset state for next time
       setStep("select");
@@ -291,7 +291,7 @@ const TemplateSelectionModal = ({
                     filteredTemplates.map((template) => (
                       <div
                         key={template.id}
-                        
+
                         className={
                           `relative flex p-6 border rounded-lg cursor-pointer transition-all
                             duration-300 hover:scale-[1.02]
@@ -394,8 +394,8 @@ const TemplateSelectionModal = ({
               <div className="flex items-center text-sm text-muted-foreground">
                 <Clock size={14} className="mr-1" />
                 <span>
-                  Estimated setup time:{" "}
-                  {selectedTemplate ? "2-5 minutes" : "Select a template"}
+                  Estimated setup time:{"2-5 minutes"}
+                  {/* {selectedTemplate ?  : "Select a template"} */}
                 </span>
               </div>
               <div className="flex gap-3">
