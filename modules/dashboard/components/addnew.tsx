@@ -59,7 +59,7 @@ const AddNewButton = () => {
             <Plus size={30} className="transition-transform duration-300 group-hover:rotate-90" />
           </Button>
           <div className="flex flex-col">
-            <h1 className="text-xl font-bold text-[#e93f3f]">Add New</h1>
+            <h1 className="text-xl font-bold text-[#f3eeee]">Add New</h1>
             <p className="text-sm text-muted-foreground max-w-[220px]"> Create  new playground</p>
           </div>
         </div>
