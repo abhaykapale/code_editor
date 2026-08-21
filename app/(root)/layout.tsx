@@ -2,14 +2,7 @@ import { cn } from "@/lib/utils";
 import {Footer} from "@/modules/home/footer";
 import {Header} from "@/modules/home/header";
 import { Metadata } from "next";
-// import Home from "../page";
 
-export const metadata: Metadata = {
-title: {
-template: "CodeEditor - Editor ",
-default: "Code Editor For VibeCoders - VibeCode",
-},
-};
 
 export default function HomeLayout ({children} : {children: React.ReactNode })
 {
